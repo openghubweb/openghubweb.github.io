@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>OpenGHub — настройки мыши в браузере</title>
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="OpenGHub"><img src="./logo.svg" alt=""><span>OpenGHub</span><span class="web">WEB</span></a>
+    <a class="source" href="https://github.com/Sanalex4/OpenGHub">Исходный код <span aria-hidden="true">↗</span></a>
+  </header>
+  <main>
+    <div class="heading"><div><h1>Настройки мыши</h1><p>Подключите Logitech и настройте чувствительность прямо в браузере.</p></div><div class="connection"><span id="status-dot"></span><span id="status">Не подключено</span></div></div>
+    <div class="notice" id="browser-notice" hidden>Для подключения нужен Chrome или другой браузер с поддержкой WebHID на компьютере.</div>
+    <div class="layout">
+      <section class="device" aria-labelledby="device-heading">
+        <div class="device-top"><span class="section-label">УСТРОЙСТВО</span><span class="badge">HID++</span></div>
+        <div class="mouse-art" aria-hidden="true"><svg viewBox="0 0 180 220" fill="none"><path d="M90 11C46 11 25 46 25 91v49c0 44 25 69 65 69s65-25 65-69V91c0-45-21-80-65-80Z" fill="#292e35" stroke="#77818f" stroke-width="2"/><path d="M90 12v60M27 86h126" stroke="#77818f" stroke-width="2"/><rect x="84" y="35" width="12" height="31" rx="6" fill="#1196ff"/><path d="M73 151a17 17 0 1 0 25-15v13h-9" stroke="#9aa7b5" stroke-width="5" stroke-linecap="round"/></svg></div>
+        <h2 id="device-heading">Мышь не выбрана</h2><p id="device-detail">Подключите мышь или её приёмник к компьютеру.</p>
+        <button id="connect" class="primary">Подключить мышь</button>
+        <button id="disconnect" class="secondary" hidden>Отключить</button>
+      </section>
+      <section class="settings" aria-label="Настройки">
+        <div class="section-head"><div><h2>Чувствительность</h2><p>Изменения применяются к подключённой мыши.</p></div><span class="badge muted">DPI</span></div>
+        <div class="control"><div class="control-heading"><label for="dpi">Скорость указателя</label><span id="dpi-range" class="hint">—</span></div><div class="entry"><input id="dpi" type="number" inputmode="numeric" disabled><span>DPI</span><button id="apply-dpi" disabled>Применить</button></div><p id="dpi-current" class="helper">Подключите устройство, чтобы узнать текущее значение.</p></div>
+        <div class="divider"></div>
+        <div class="control"><div class="control-heading"><label for="rate">Частота опроса</label><span class="hint">отчётов в секунду</span></div><div class="entry"><select id="rate" disabled><option>Нет данных</option></select><button id="apply-rate" disabled>Применить</button></div><p id="rate-current" class="helper">Доступные значения зависят от модели и подключения.</p></div>
+        <div id="lod-control" hidden><div class="divider"></div><div class="control-heading"><label for="lod">Высота отрыва</label></div><div class="entry"><select id="lod"><option value="1">Низкая</option><option value="2">Средняя</option><option value="3">Высокая</option></select><button id="apply-lod">Применить</button></div><p class="helper">Доступные уровни зависят от модели мыши.</p></div>
+        <div id="message" class="message" role="status" aria-live="polite"></div>
+      </section>
+    </div>
+    <div id="advanced" hidden>
+      <section class="settings feature-card" aria-labelledby="device-info-title">
+        <div class="section-head"><div><h2 id="device-info-title">Устройство</h2><p>Режим и состояние, которые сообщает мышь.</p></div><span class="badge muted">INFO</span></div>
+        <div class="control"><div class="control-heading"><label for="mode">Режим памяти</label><span id="battery" class="hint"></span></div><div class="entry"><select id="mode" disabled><option>Не поддерживается</option></select><button id="apply-mode" disabled>Применить</button></div><p class="helper">В режиме устройства используются встроенные профили. В режиме хоста некоторые настройки действуют только до отключения.</p></div>
+      </section>
+      <section class="settings feature-card" aria-labelledby="lighting-title">
+        <div class="section-head"><div><h2 id="lighting-title">Подсветка</h2><p>Выберите зону и эффект, которые поддерживает мышь.</p></div><span class="badge muted">LIGHTSYNC</span></div>
+        <button class="secondary inline" id="load-lighting">Загрузить зоны</button>
+        <div id="lighting-controls" hidden>
+          <div class="form-grid"><label>Зона<select id="zone"></select></label><label>Эффект<select id="effect"></select></label><label>Цвет<input id="color" type="color" value="#1196ff"></label><label>Период, мс<input id="period" type="number" min="100" max="60000" value="3000"></label><label>Яркость, %<input id="brightness" type="number" min="0" max="100" value="100"></label></div>
+          <label class="check"><input type="checkbox" id="persist-light"> Сохранить эффект в памяти устройства, если поддерживается</label>
+          <button class="primary inline" id="apply-light">Применить подсветку</button>
+          <p class="helper">Для некоторых мышей требуется режим хоста. Временные эффекты могут сброситься после отключения.</p>
+        </div>
+      </section>
+      <section class="settings feature-card" aria-labelledby="profiles-title">
+        <div class="section-head"><div><h2 id="profiles-title">Профили в памяти мыши</h2><p>Чтение и изменение встроенных ступеней DPI и назначений кнопок.</p></div><span class="badge muted">ПАМЯТЬ</span></div>
+        <button class="secondary inline" id="load-profiles">Прочитать профили</button>
+        <div id="profile-controls" hidden>
+          <div class="entry"><select id="profile-select" aria-label="Профиль"></select><button id="read-profile">Открыть</button></div>
+          <p id="profile-note" class="helper"></p>
+          <h3>Ступени DPI</h3><div id="stages" class="form-grid"></div>
+          <div class="form-grid"><label>Основная ступень<select id="default-stage"></select></label><label>Ступень DPI Shift<select id="shift-stage"></select></label></div>
+          <button class="primary inline" id="save-stages">Записать ступени DPI</button>
+          <div class="divider"></div><h3>Назначения кнопок</h3><p class="helper">Изменения записываются в выбранный профиль; основное нажатие должно оставаться хотя бы на одной кнопке.</p>
+          <div id="buttons" class="button-list"></div><button class="primary inline" id="save-buttons">Записать назначения</button>
+          <div class="form-grid"><label>Кнопка для сочетания<select id="key-button"></select></label><label>Нажмите сочетание<input id="key-capture" type="text" readonly placeholder="Например Ctrl + C"></label></div><button class="secondary inline" id="save-key">Назначить сочетание</button>
+          <button class="secondary inline" id="restore-profile">Восстановить исходный профиль</button>
+          <p class="helper">Исходный сектор сохраняется в браузере перед записью. Восстановление доступно до отключения мыши или перезагрузки страницы. Запись поддерживает только определённый формат памяти; на реальной мыши она ещё не проверена.</p>
+          <div class="divider"></div><h3>Текстовый макрос</h3><p class="helper">Записывает последовательность нажатий клавиш в память мыши. Используются латинские буквы, цифры и базовая пунктуация; результат зависит от раскладки клавиатуры.</p>
+          <div class="form-grid"><label>Кнопка<select id="macro-button"></select></label><label>Задержка между символами, мс<input id="macro-delay" type="number" min="0" max="5000" value="50"></label></div>
+          <label class="macro-label" for="macro-text">Текст макроса</label><textarea id="macro-text" maxlength="40" rows="3" placeholder="Например: hello"></textarea>
+          <button class="primary inline" id="save-macro">Записать макрос в мышь</button>
+        </div>
+      </section>
+    </div>
+    <footer><p>Возможности зависят от модели. Часть изменений действует до отключения, а встроенные профили сохраняются в памяти мыши.</p><p>Браузер покажет запрос на доступ к устройству. Данные не отправляются на сервер.</p></footer>
+  </main>
+</body>
+</html>
