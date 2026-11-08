@@ -168,6 +168,14 @@ export class Hidpp {
     return this.readMode();
   }
 
+  async enableOnboard() {
+    const mode = await this.readMode();
+    if (!mode) throw new Error('Мышь не сообщает о поддержке встроенных профилей');
+    const result = mode.value === 1 ? mode : await this.setMode(mode, 1);
+    if (result?.value !== 1) throw new Error('Мышь не подтвердила режим встроенной памяти');
+    return result;
+  }
+
   async readLighting() {
     let feature = await this.feature(0x8070);
     const rgb = !feature;

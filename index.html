@@ -33,25 +33,23 @@
         <button class="tab" role="tab" aria-selected="false" aria-controls="device-panel" id="tab-device" data-tab="device" tabindex="-1">Устройство</button>
       </nav>
       <section class="settings" id="sensitivity-panel" role="tabpanel" aria-labelledby="tab-sensitivity">
-        <div class="section-head"><div><h2>Чувствительность</h2><p>Изменения применяются к подключённой мыши.</p></div><span class="badge muted">DPI</span></div>
+        <div class="section-head"><div><h2>Чувствительность</h2><p>Настройки записываются в выбранный профиль памяти мыши.</p></div><span class="badge muted">DPI</span></div>
         <div class="control"><div class="control-heading"><label for="dpi">Скорость указателя</label><span id="dpi-range" class="hint">—</span></div><div class="entry"><input id="dpi" type="number" inputmode="numeric" disabled><span>DPI</span><button id="apply-dpi" disabled>Применить</button></div><p id="dpi-current" class="helper">Подключите устройство, чтобы узнать текущее значение.</p></div>
         <div class="divider"></div>
         <div class="control"><div class="control-heading"><label for="rate">Частота опроса</label><span class="hint">отчётов в секунду</span></div><div class="entry"><select id="rate" disabled><option>Нет данных</option></select><button id="apply-rate" disabled>Применить</button></div><p id="rate-current" class="helper">Доступные значения зависят от модели и подключения.</p></div>
-        <div id="lod-control" hidden><div class="divider"></div><div class="control-heading"><label for="lod">Высота отрыва</label></div><div class="entry"><select id="lod"><option value="1">Низкая</option><option value="2">Средняя</option><option value="3">Высокая</option></select><button id="apply-lod">Применить</button></div><p class="helper">Доступные уровни зависят от модели мыши.</p></div>
       </section>
     <div id="advanced" hidden>
       <section class="settings feature-card" id="device-panel" role="tabpanel" aria-labelledby="tab-device" hidden>
         <div class="section-head"><div><h2 id="device-info-title">Устройство</h2><p>Режим и состояние, которые сообщает мышь.</p></div><span class="badge muted">INFO</span></div>
-        <div class="control"><div class="control-heading"><label for="mode">Режим памяти</label><span id="battery" class="hint"></span></div><div class="entry"><select id="mode" disabled><option>Не поддерживается</option></select><button id="apply-mode" disabled>Применить</button></div><p class="helper">В режиме устройства используются встроенные профили. В режиме хоста некоторые настройки действуют только до отключения.</p></div>
+        <div class="control"><div class="control-heading"><span>Режим памяти</span><span id="battery" class="hint"></span></div><p id="mode-status" class="helper">Подключите устройство.</p><button id="apply-mode" class="secondary inline">Включить память устройства</button><p class="helper">При подключении приложение включает встроенную память, если мышь поддерживает этот режим.</p></div>
       </section>
       <section class="settings feature-card" id="lighting-panel" role="tabpanel" aria-labelledby="tab-lighting" hidden>
         <div class="section-head"><div><h2 id="lighting-title">Подсветка</h2><p>Выберите зону и эффект, которые поддерживает мышь.</p></div><span class="badge muted">LIGHTSYNC</span></div>
         <button class="secondary inline" id="load-lighting">Загрузить зоны</button>
         <div id="lighting-controls" hidden>
           <div class="form-grid"><label>Зона<select id="zone"></select></label><label>Эффект<select id="effect"></select></label><label>Цвет<input id="color" type="color" value="#1196ff"></label><label>Период, мс<input id="period" type="number" min="100" max="60000" value="3000"></label><label>Яркость, %<input id="brightness" type="number" min="0" max="100" value="100"></label></div>
-          <label class="check"><input type="checkbox" id="persist-light"> Сохранить эффект в памяти устройства, если поддерживается</label>
           <button class="primary inline" id="apply-light">Применить подсветку</button>
-          <p class="helper">Для некоторых мышей требуется режим хоста. Временные эффекты могут сброситься после отключения.</p>
+          <p class="helper">Команда запрашивает сохранение эффекта в памяти. Поддержка зависит от модели и прошивки.</p>
         </div>
       </section>
       <section class="settings feature-card" id="profiles-panel" aria-labelledby="profiles-title" hidden>
@@ -85,7 +83,7 @@
     <p id="tab-connect" class="settings tab-connect" hidden>Подключите мышь, чтобы открыть этот раздел.</p>
     <div id="message" class="message" role="status" aria-live="polite"></div>
     </div></div>
-    <footer><p>Возможности зависят от модели. Часть изменений действует до отключения, а встроенные профили сохраняются в памяти мыши.</p><p>Браузер покажет запрос на доступ к устройству. Данные не отправляются на сервер.</p></footer>
+    <footer><p>Настройки сохраняются во встроенном профиле там, где устройство поддерживает запись. Возможности зависят от модели.</p><p>Браузер покажет запрос на доступ к устройству. Данные не отправляются на сервер.</p></footer>
   </main>
 </body>
 </html>

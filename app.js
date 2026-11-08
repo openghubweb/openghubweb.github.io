@@ -1,5 +1,5 @@
 import { Hidpp, LOGITECH } from './hidpp.js';
-import { readProfiles, readSector, writeSector, writeTextMacro, writeMacro, encodeSteps, validSector } from './onboard.js';
+import { readProfiles, readSector, writeSector, writeTextMacro, writeMacro, encodeSteps, validSector, profileDpi, profileRate } from './onboard.js';
 
 const $ = id => document.getElementById(id);
 let client = null;
@@ -48,34 +48,34 @@ function controls() {
   $('connect').hidden = !!client;
   $('disconnect').hidden = !client;
   $('disconnect').disabled = busy;
-  $('dpi').disabled = busy || !dpi;
-  $('apply-dpi').disabled = busy || !dpi;
-  $('rate').disabled = busy || !rate;
-  $('apply-rate').disabled = busy || !rate;
-  $('lod').disabled = busy || !dpi?.lodSupported;
-  $('apply-lod').disabled = busy || !dpi?.lodSupported;
+  const writable = mode?.value === 1 && profiles?.format === 4 && profiles?.size === 255 && !!profileBytes && profileSector === Number($('profile-select').value);
+  $('dpi').disabled = busy || !dpi || !writable;
+  $('apply-dpi').disabled = busy || !dpi || !writable;
+  $('rate').disabled = busy || !rate || !writable;
+  $('apply-rate').disabled = busy || !rate || !writable;
   for (const button of document.querySelectorAll('#advanced button:not(#macro-steps button)')) button.disabled = busy;
   for (const button of document.querySelectorAll('#macro-steps button')) button.disabled = busy || button.dataset.boundary === 'true';
-  $('mode').disabled = busy || !mode;
-  $('apply-mode').disabled = busy || !mode;
+  for (const id of ['save-stages', 'save-buttons', 'save-key', 'restore-profile', 'save-macro', 'save-steps']) $(id).disabled = busy || !writable;
+  $('apply-light').disabled = busy || mode?.value !== 1 || !lighting || !$('effect').options.length;
+  $('apply-mode').disabled = busy || !client || mode?.value === 1;
   $('profile-select').disabled = busy;
 }
 
 function renderDpi() {
-  $('dpi').value = dpi?.current ?? '';
+  const index = profileBytes?.[1];
+  const saved = index <= 4 ? profileBytes[3 + index * 2] | (profileBytes[4 + index * 2] << 8) : null;
+  $('dpi').value = saved ?? '';
   $('dpi').min = dpi?.min ?? '';
   $('dpi').max = dpi?.max ?? '';
   $('dpi-range').textContent = dpi ? `${dpi.min.toLocaleString('ru-RU')}–${dpi.max.toLocaleString('ru-RU')} DPI` : '—';
-  $('dpi-current').textContent = dpi ? `Текущее значение: ${dpi.current.toLocaleString('ru-RU')} DPI` : 'Регулировка DPI не найдена у этого устройства.';
-  $('lod-control').hidden = !dpi?.lodSupported;
-  if (dpi?.lodSupported) $('lod').value = String(dpi.lod);
+  $('dpi-current').textContent = saved ? `Основная ступень выбранного профиля: ${saved.toLocaleString('ru-RU')} DPI` : 'Прочитайте профиль, чтобы изменить сохранённый DPI.';
 }
 
 function renderRate() {
   $('rate').replaceChildren();
   if (!rate) $('rate').add(new Option('Нет данных', ''));
-  else for (const hz of [...rate.rates].sort((a, b) => b - a)) $('rate').add(new Option(`${hz} Гц`, String(hz), hz === rate.current, hz === rate.current));
-  $('rate-current').textContent = rate ? `Текущее значение: ${rate.current} Гц` : 'Регулировка частоты опроса не найдена у этого устройства.';
+  else for (const hz of [...rate.rates].filter(hz => { const p = Math.round(1000 / hz); return p >= 1 && p <= 8 && Math.floor(1000 / p) === hz; }).sort((a, b) => b - a)) $('rate').add(new Option(`${hz} Гц`, String(hz), hz === Math.floor(1000 / profileBytes?.[0]), hz === Math.floor(1000 / profileBytes?.[0])));
+  $('rate-current').textContent = profileBytes?.[0] ? `В выбранном профиле: ${Math.floor(1000 / profileBytes[0])} Гц` : 'Прочитайте профиль, чтобы изменить сохранённую частоту.';
 }
 
 async function reset() {
@@ -88,7 +88,6 @@ async function reset() {
   $('device-detail').textContent = 'Подключите мышь или её приёмник к компьютеру.';
   $('dpi').value = '';
   $('dpi-range').textContent = '—';
-  $('lod-control').hidden = true;
   $('dpi-current').textContent = 'Подключите устройство, чтобы узнать текущее значение.';
   $('rate').replaceChildren(new Option('Нет данных', ''));
   $('rate-current').textContent = 'Доступные значения зависят от модели и подключения.';
@@ -116,7 +115,7 @@ $('connect').addEventListener('click', async () => {
     const errors = [];
     try { dpi = await candidate.readDpi(); } catch (error) { errors.push(`DPI: ${error.message}`); }
     try { rate = await candidate.readRate(); } catch (error) { errors.push(`Частота: ${error.message}`); }
-    try { mode = await candidate.readMode(); } catch (error) { errors.push(`Режим: ${error.message}`); }
+    try { mode = await candidate.enableOnboard(); } catch (error) { mode = null; errors.push(`Память устройства: ${error.message}`); }
     try {
       const battery = await candidate.readBattery();
       $('battery').textContent = battery ? `Батарея: ${battery.approximate ? '≈' : ''}${battery.percent}%${battery.charging ? ' · зарядка' : ''}` : '';
@@ -124,8 +123,9 @@ $('connect').addEventListener('click', async () => {
     renderMode();
     $('advanced').hidden = false;
     renderTab();
+    if (mode?.value === 1) try { await loadProfiles(); } catch (error) { errors.push(`Профили: ${error.message}`); }
     renderDpi(); renderRate();
-    message(errors.length ? errors.join(' · ') : 'Настройки прочитаны. Некоторые устройства разрешают изменение только в режиме хоста.', errors.length > 0);
+    message(errors.length ? errors.join(' · ') : 'Включена память устройства. Профиль прочитан.', errors.length > 0);
   } catch (error) {
     await candidate.close().catch(() => {});
     message(`Не удалось подключиться: ${error.message}`, true);
@@ -135,23 +135,10 @@ $('connect').addEventListener('click', async () => {
 $('disconnect').addEventListener('click', async () => { await reset(); message('Устройство отключено.'); });
 $('apply-dpi').addEventListener('click', async () => {
   const value = Number($('dpi').value);
-  if (!Number.isFinite(value) || !$('dpi').value || value < dpi.min || value > dpi.max) { message('Введите DPI в указанном диапазоне.', true); return; }
-  busy = true; controls();
-  try { dpi = await client.setDpi(dpi, value); renderDpi(); message(`Текущий DPI: ${dpi.current}.`); }
-  catch (error) { message(`Не удалось изменить DPI: ${error.message}. Проверьте режим памяти устройства.`, true); }
-  finally { busy = false; controls(); }
+  await operation(async () => { requireProfile(); profileBytes = await writeSector(client, profiles, profileSector, profileBytes, profileDpi(profileBytes, value, dpi.values)); renderProfile(); message(`DPI ${value} записан в профиль.`); });
 });
 $('apply-rate').addEventListener('click', async () => {
-  busy = true; controls();
-  try { rate = await client.setRate(rate, Number($('rate').value)); renderRate(); message(`Текущая частота: ${rate.current} Гц.`); }
-  catch (error) { message(`Не удалось изменить частоту: ${error.message}. Проверьте режим памяти устройства.`, true); }
-  finally { busy = false; controls(); }
-});
-$('apply-lod').addEventListener('click', async () => {
-  busy = true; controls();
-  try { dpi = await client.setLod(dpi, Number($('lod').value)); renderDpi(); message('Высота отрыва прочитана после изменения.'); }
-  catch (error) { message(`Не удалось изменить высоту отрыва: ${error.message}`, true); }
-  finally { busy = false; controls(); }
+  await operation(async () => { requireProfile(); const hz = Number($('rate').value); profileBytes = await writeSector(client, profiles, profileSector, profileBytes, profileRate(profileBytes, hz, rate.rates)); renderProfile(); message(`${hz} Гц записано в профиль.`); });
 });
 
 if (!navigator.hid) $('browser-notice').hidden = false;
@@ -161,12 +148,11 @@ else navigator.hid.addEventListener('disconnect', event => {
 controls();
 
 function renderMode() {
-  $('mode').replaceChildren();
-  if (!mode) $('mode').add(new Option('Не поддерживается', ''));
-  else {
-    $('mode').add(new Option('Память устройства', '1', mode.value === 1, mode.value === 1));
-    $('mode').add(new Option('Режим хоста', '2', mode.value === 2, mode.value === 2));
-  }
+  $('mode-status').textContent = mode?.value === 1 ? 'Встроенная память включена' : 'Встроенная память не включена';
+}
+
+function requireProfile() {
+  if (mode?.value !== 1 || !profileBytes || profileSector !== Number($('profile-select').value)) throw new Error('Включите память устройства и прочитайте профиль');
 }
 
 async function operation(action) {
@@ -178,9 +164,10 @@ async function operation(action) {
 }
 
 $('apply-mode').addEventListener('click', () => operation(async () => {
-  mode = await client.setMode(mode, Number($('mode').value));
+  mode = await client.enableOnboard();
   renderMode();
-  message('Режим устройства обновлён.');
+  await loadProfiles();
+  message('Встроенная память включена, профиль прочитан.');
 }));
 
 const effectNames = new Map([[0, 'Выключено'], [1, 'Постоянный цвет'], [3, 'Смена цветов'], [10, 'Дыхание']]);
@@ -188,7 +175,7 @@ function renderEffects() {
   $('effect').replaceChildren();
   const zone = lighting?.zones.find(z => z.index === Number($('zone').value));
   for (const effect of zone?.effects ?? []) if (effectNames.has(effect)) $('effect').add(new Option(effectNames.get(effect), String(effect)));
-  $('apply-light').disabled = busy || !$('effect').options.length;
+  $('apply-light').disabled = busy || mode?.value !== 1 || !$('effect').options.length;
 }
 $('zone').addEventListener('change', renderEffects);
 $('load-lighting').addEventListener('click', () => operation(async () => {
@@ -203,8 +190,9 @@ $('load-lighting').addEventListener('click', () => operation(async () => {
 }));
 $('apply-light').addEventListener('click', () => operation(async () => {
   if (!lighting || !$('effect').value) throw new Error('Выберите поддерживаемый эффект');
-  await client.setLighting(lighting, Number($('zone').value), Number($('effect').value), $('color').value, Number($('period').value), Number($('brightness').value), $('persist-light').checked);
-  message('Команда подсветки отправлена. Если эффект не изменился, проверьте режим хоста и сохранение в памяти.');
+  if (mode?.value !== 1) throw new Error('Включите встроенную память устройства');
+  await client.setLighting(lighting, Number($('zone').value), Number($('effect').value), $('color').value, Number($('period').value), Number($('brightness').value), true);
+  message('Команда сохранения подсветки отправлена. Сохранение зависит от устройства.');
 }));
 
 const buttonNames = ['Левая', 'Правая', 'Средняя', 'Назад', 'Вперёд', 'DPI'];
@@ -220,6 +208,7 @@ const buttonOptions = [
 const hex = bytes => Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
 
 function renderProfile() {
+  renderDpi(); renderRate();
   $('stages').replaceChildren();
   $('default-stage').replaceChildren();
   $('shift-stage').replaceChildren();
@@ -262,14 +251,15 @@ async function openProfile() {
   profileSector = sector;
   renderProfile();
 }
-$('load-profiles').addEventListener('click', () => operation(async () => {
+async function loadProfiles() {
   profiles = await readProfiles(client);
   if (!profiles?.entries.length) throw new Error('Встроенные профили не найдены');
   $('profile-select').replaceChildren();
   for (const entry of profiles.entries.filter(e => e.enabled)) $('profile-select').add(new Option(`Профиль ${entry.sector}${entry.sector === profiles.current ? ' · активный' : ''}`, String(entry.sector), entry.sector === profiles.current, entry.sector === profiles.current));
   if (!$('profile-select').options.length) throw new Error('Активные профили не найдены');
-  await openProfile(); message('Встроенный профиль прочитан.');
-}));
+  await openProfile();
+}
+$('load-profiles').addEventListener('click', () => operation(async () => { await loadProfiles(); message('Встроенный профиль прочитан.'); }));
 $('read-profile').addEventListener('click', () => operation(openProfile));
 $('profile-select').addEventListener('change', () => operation(openProfile));
 $('save-stages').addEventListener('click', () => operation(async () => {

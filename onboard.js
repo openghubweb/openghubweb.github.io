@@ -14,6 +14,23 @@ export function validSector(bytes) {
   return crc16(bytes.subarray(0, -2)) === ((bytes.at(-2) << 8) | bytes.at(-1));
 }
 
+export function profileDpi(profile, value, values) {
+  const index = profile[1];
+  if (index > 4 || !Number.isInteger(value) || !values.includes(value)) throw new Error('Выберите поддерживаемое значение DPI');
+  const changed = Uint8Array.from(profile);
+  changed[3 + index * 2] = value & 255;
+  changed[4 + index * 2] = value >> 8;
+  return changed;
+}
+
+export function profileRate(profile, hz, rates) {
+  const period = Math.round(1000 / hz);
+  if (!rates.includes(hz) || !Number.isInteger(period) || period < 1 || period > 8 || Math.floor(1000 / period) !== hz) throw new Error('Частота не поддерживается форматом встроенного профиля');
+  const changed = Uint8Array.from(profile);
+  changed[0] = period;
+  return changed;
+}
+
 export async function readSector(client, info, sector) {
   if (sector < 0 || sector >= info.sectors || info.size < 16 || info.size > 4096) throw new Error('Неверный адрес памяти устройства');
   const bytes = new Uint8Array(info.size);
