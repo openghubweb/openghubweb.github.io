@@ -94,13 +94,13 @@ export function encodeTextMacro(text, delay) {
 }
 
 // Append to genuinely free bytes, preserving every macro referenced by any profile.
-export async function writeTextMacro(client, info, sector, profile, button, text, delay) {
+export async function writeMacro(client, info, sector, profile, button, bytes) {
   if (info.format !== 4 || info.macros !== 1 || info.size !== 255) throw new Error('Макросы для этого формата памяти пока не поддерживаются');
   if (!Number.isInteger(button) || button < 0 || button >= info.buttons) throw new Error('Неверная кнопка');
+  if (!(bytes instanceof Uint8Array) || bytes.length < 2 || bytes.at(-1) !== 255) throw new Error('Макрос пуст или повреждён');
   const slot = info.entries.findIndex(e => e.sector === sector);
   const macroSector = info.sectors - 1 - slot;
   if (slot < 0 || macroSector <= 0 || info.entries.some(e => e.sector === macroSector)) throw new Error('Не удалось безопасно определить сектор макросов');
-  const bytes = encodeTextMacro(text, delay);
   const originalMacro = await readSector(client, info, macroSector);
   const reserved = new Uint8Array(info.size);
   for (const entry of info.entries) {
@@ -137,4 +137,26 @@ export async function writeTextMacro(client, info, sector, profile, button, text
   changedMacro.set(bytes, offset);
   await writeSector(client, info, macroSector, originalMacro, changedMacro);
   return writeSector(client, info, sector, profile, changedProfile);
+}
+
+export function writeTextMacro(client, info, sector, profile, button, text, delay) {
+  return writeMacro(client, info, sector, profile, button, encodeTextMacro(text, delay));
+}
+
+export function encodeSteps(steps) {
+  if (!steps.length) throw new Error('Добавьте хотя бы одно действие');
+  const out = [];
+  for (const step of steps) {
+    if (step.type === 'key' && Number.isInteger(step.usage) && step.usage >= 4 && step.usage <= 0xff && Number.isInteger(step.modifiers) && step.modifiers >= 0 && step.modifiers <= 15) {
+      if (step.modifiers) out.push(0x22, step.modifiers);
+      out.push(0x20, step.usage, 0x21, step.usage);
+      if (step.modifiers) out.push(0x23, step.modifiers);
+    } else if (step.type === 'mouse' && [1, 2, 4, 8, 16].includes(step.mask)) {
+      out.push(0x40, 0, step.mask, 0x41, 0, step.mask);
+    } else if (step.type === 'delay' && Number.isInteger(step.ms) && step.ms >= 0 && step.ms <= 5000) {
+      out.push(0x80, step.ms >> 8, step.ms & 255);
+    } else throw new Error('Некорректное действие макроса');
+  }
+  out.push(255);
+  return Uint8Array.from(out);
 }

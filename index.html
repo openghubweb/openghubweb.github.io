@@ -24,21 +24,27 @@
         <button id="connect" class="primary">Подключить мышь</button>
         <button id="disconnect" class="secondary" hidden>Отключить</button>
       </section>
-      <section class="settings" aria-label="Настройки">
+      <div class="workspace">
+      <nav class="tabs" aria-label="Разделы настроек" role="tablist">
+        <button class="tab active" role="tab" aria-selected="true" aria-controls="sensitivity-panel" id="tab-sensitivity" data-tab="sensitivity">Чувствительность</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="lighting-panel" id="tab-lighting" data-tab="lighting" tabindex="-1">Подсветка</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="buttons-panel" id="tab-buttons" data-tab="buttons" tabindex="-1">Кнопки</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="macros-panel" id="tab-macros" data-tab="macros" tabindex="-1">Макросы</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="device-panel" id="tab-device" data-tab="device" tabindex="-1">Устройство</button>
+      </nav>
+      <section class="settings" id="sensitivity-panel" role="tabpanel" aria-labelledby="tab-sensitivity">
         <div class="section-head"><div><h2>Чувствительность</h2><p>Изменения применяются к подключённой мыши.</p></div><span class="badge muted">DPI</span></div>
         <div class="control"><div class="control-heading"><label for="dpi">Скорость указателя</label><span id="dpi-range" class="hint">—</span></div><div class="entry"><input id="dpi" type="number" inputmode="numeric" disabled><span>DPI</span><button id="apply-dpi" disabled>Применить</button></div><p id="dpi-current" class="helper">Подключите устройство, чтобы узнать текущее значение.</p></div>
         <div class="divider"></div>
         <div class="control"><div class="control-heading"><label for="rate">Частота опроса</label><span class="hint">отчётов в секунду</span></div><div class="entry"><select id="rate" disabled><option>Нет данных</option></select><button id="apply-rate" disabled>Применить</button></div><p id="rate-current" class="helper">Доступные значения зависят от модели и подключения.</p></div>
         <div id="lod-control" hidden><div class="divider"></div><div class="control-heading"><label for="lod">Высота отрыва</label></div><div class="entry"><select id="lod"><option value="1">Низкая</option><option value="2">Средняя</option><option value="3">Высокая</option></select><button id="apply-lod">Применить</button></div><p class="helper">Доступные уровни зависят от модели мыши.</p></div>
-        <div id="message" class="message" role="status" aria-live="polite"></div>
       </section>
-    </div>
     <div id="advanced" hidden>
-      <section class="settings feature-card" aria-labelledby="device-info-title">
+      <section class="settings feature-card" id="device-panel" role="tabpanel" aria-labelledby="tab-device" hidden>
         <div class="section-head"><div><h2 id="device-info-title">Устройство</h2><p>Режим и состояние, которые сообщает мышь.</p></div><span class="badge muted">INFO</span></div>
         <div class="control"><div class="control-heading"><label for="mode">Режим памяти</label><span id="battery" class="hint"></span></div><div class="entry"><select id="mode" disabled><option>Не поддерживается</option></select><button id="apply-mode" disabled>Применить</button></div><p class="helper">В режиме устройства используются встроенные профили. В режиме хоста некоторые настройки действуют только до отключения.</p></div>
       </section>
-      <section class="settings feature-card" aria-labelledby="lighting-title">
+      <section class="settings feature-card" id="lighting-panel" role="tabpanel" aria-labelledby="tab-lighting" hidden>
         <div class="section-head"><div><h2 id="lighting-title">Подсветка</h2><p>Выберите зону и эффект, которые поддерживает мышь.</p></div><span class="badge muted">LIGHTSYNC</span></div>
         <button class="secondary inline" id="load-lighting">Загрузить зоны</button>
         <div id="lighting-controls" hidden>
@@ -48,27 +54,37 @@
           <p class="helper">Для некоторых мышей требуется режим хоста. Временные эффекты могут сброситься после отключения.</p>
         </div>
       </section>
-      <section class="settings feature-card" aria-labelledby="profiles-title">
+      <section class="settings feature-card" id="profiles-panel" aria-labelledby="profiles-title" hidden>
         <div class="section-head"><div><h2 id="profiles-title">Профили в памяти мыши</h2><p>Чтение и изменение встроенных ступеней DPI и назначений кнопок.</p></div><span class="badge muted">ПАМЯТЬ</span></div>
         <button class="secondary inline" id="load-profiles">Прочитать профили</button>
         <div id="profile-controls" hidden>
           <div class="entry"><select id="profile-select" aria-label="Профиль"></select><button id="read-profile">Открыть</button></div>
           <p id="profile-note" class="helper"></p>
-          <h3>Ступени DPI</h3><div id="stages" class="form-grid"></div>
+          <div data-profile-tab="sensitivity"><h3>Ступени DPI</h3><div id="stages" class="form-grid"></div>
           <div class="form-grid"><label>Основная ступень<select id="default-stage"></select></label><label>Ступень DPI Shift<select id="shift-stage"></select></label></div>
-          <button class="primary inline" id="save-stages">Записать ступени DPI</button>
-          <div class="divider"></div><h3>Назначения кнопок</h3><p class="helper">Изменения записываются в выбранный профиль; основное нажатие должно оставаться хотя бы на одной кнопке.</p>
+          <button class="primary inline" id="save-stages">Записать ступени DPI</button></div>
+          <div id="buttons-panel" data-profile-tab="buttons" role="tabpanel" aria-labelledby="tab-buttons" hidden><div class="divider"></div><h3>Назначения кнопок</h3><p class="helper">Выберите действие для каждой кнопки и запишите изменения в выбранный профиль.</p>
           <div id="buttons" class="button-list"></div><button class="primary inline" id="save-buttons">Записать назначения</button>
           <div class="form-grid"><label>Кнопка для сочетания<select id="key-button"></select></label><label>Нажмите сочетание<input id="key-capture" type="text" readonly placeholder="Например Ctrl + C"></label></div><button class="secondary inline" id="save-key">Назначить сочетание</button>
-          <button class="secondary inline" id="restore-profile">Восстановить исходный профиль</button>
-          <p class="helper">Исходный сектор сохраняется в браузере перед записью. Восстановление доступно до отключения мыши или перезагрузки страницы. Запись поддерживает только определённый формат памяти; на реальной мыши она ещё не проверена.</p>
-          <div class="divider"></div><h3>Текстовый макрос</h3><p class="helper">Записывает последовательность нажатий клавиш в память мыши. Используются латинские буквы, цифры и базовая пунктуация; результат зависит от раскладки клавиатуры.</p>
-          <div class="form-grid"><label>Кнопка<select id="macro-button"></select></label><label>Задержка между символами, мс<input id="macro-delay" type="number" min="0" max="5000" value="50"></label></div>
+          </div>
+          <div id="macros-panel" data-profile-tab="macros" role="tabpanel" aria-labelledby="tab-macros" hidden><div class="divider"></div><h3>Редактор макроса</h3><p class="helper">Добавьте действия по порядку. Макрос воспроизводится из памяти мыши при нажатии выбранной кнопки.</p>
+          <div class="form-grid"><label>Клавиша или сочетание<input id="macro-key" readonly placeholder="Нажмите сочетание"></label><label>Пауза, мс<input id="step-delay" type="number" min="0" max="5000" value="50"></label><label>Клик мыши<select id="step-mouse"><option value="1">Левая</option><option value="2">Правая</option><option value="4">Средняя</option><option value="8">Назад</option><option value="16">Вперёд</option></select></label></div>
+          <div class="actions"><button class="secondary inline" id="add-key">Добавить клавишу</button><button class="secondary inline" id="add-delay">Добавить паузу</button><button class="secondary inline" id="add-mouse">Добавить клик</button></div>
+          <ol id="macro-steps" class="step-list" aria-label="Действия макроса"></ol><p id="steps-empty" class="helper">Пока нет действий.</p>
+          <div class="form-grid"><label>Назначить на кнопку<select id="macro-button"></select></label></div><button class="primary inline" id="save-steps">Записать макрос на кнопку</button>
+          <div class="divider"></div><h3>Текстовый макрос</h3><p class="helper">Латинские буквы, цифры и базовая пунктуация; результат зависит от раскладки клавиатуры.</p>
+          <div class="form-grid"><label>Задержка между символами, мс<input id="macro-delay" type="number" min="0" max="5000" value="50"></label></div>
           <label class="macro-label" for="macro-text">Текст макроса</label><textarea id="macro-text" maxlength="40" rows="3" placeholder="Например: hello"></textarea>
           <button class="primary inline" id="save-macro">Записать макрос в мышь</button>
+          </div>
+          <div class="divider"></div><button class="secondary inline" id="restore-profile">Восстановить исходный профиль</button>
+          <p class="helper">Исходный профиль сохраняется в браузере перед записью и доступен для восстановления до отключения мыши или перезагрузки страницы.</p>
         </div>
       </section>
     </div>
+    <p id="tab-connect" class="settings tab-connect" hidden>Подключите мышь, чтобы открыть этот раздел.</p>
+    <div id="message" class="message" role="status" aria-live="polite"></div>
+    </div></div>
     <footer><p>Возможности зависят от модели. Часть изменений действует до отключения, а встроенные профили сохраняются в памяти мыши.</p><p>Браузер покажет запрос на доступ к устройству. Данные не отправляются на сервер.</p></footer>
   </main>
 </body>

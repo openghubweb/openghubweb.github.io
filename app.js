@@ -1,5 +1,5 @@
 import { Hidpp, LOGITECH } from './hidpp.js';
-import { readProfiles, readSector, writeSector, writeTextMacro, validSector } from './onboard.js';
+import { readProfiles, readSector, writeSector, writeTextMacro, writeMacro, encodeSteps, validSector } from './onboard.js';
 
 const $ = id => document.getElementById(id);
 let client = null;
@@ -11,6 +11,32 @@ let lighting = null;
 let profiles = null;
 let profileBytes = null;
 let profileSector = null;
+let activeTab = 'sensitivity';
+
+function renderTab() {
+  for (const tab of document.querySelectorAll('.tab')) {
+    const selected = tab.dataset.tab === activeTab;
+    tab.classList.toggle('active', selected);
+    tab.setAttribute('aria-selected', String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+  }
+  $('sensitivity-panel').hidden = activeTab !== 'sensitivity';
+  $('device-panel').hidden = activeTab !== 'device';
+  $('lighting-panel').hidden = activeTab !== 'lighting';
+  $('profiles-panel').hidden = !['sensitivity', 'buttons', 'macros'].includes(activeTab);
+  for (const panel of document.querySelectorAll('[data-profile-tab]')) panel.hidden = panel.dataset.profileTab !== activeTab;
+  $('tab-connect').hidden = !!client || activeTab === 'sensitivity';
+}
+for (const tab of document.querySelectorAll('.tab')) {
+  tab.addEventListener('click', () => { activeTab = tab.dataset.tab; renderTab(); });
+  tab.addEventListener('keydown', event => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    const tabs = [...document.querySelectorAll('.tab')], index = tabs.indexOf(tab);
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+    event.preventDefault(); tabs[next].click(); tabs[next].focus();
+  });
+}
+renderTab();
 
 function message(text, error = false) {
   $('message').textContent = text;
@@ -28,7 +54,8 @@ function controls() {
   $('apply-rate').disabled = busy || !rate;
   $('lod').disabled = busy || !dpi?.lodSupported;
   $('apply-lod').disabled = busy || !dpi?.lodSupported;
-  for (const button of document.querySelectorAll('#advanced button')) button.disabled = busy;
+  for (const button of document.querySelectorAll('#advanced button:not(#macro-steps button)')) button.disabled = busy;
+  for (const button of document.querySelectorAll('#macro-steps button')) button.disabled = busy || button.dataset.boundary === 'true';
   $('mode').disabled = busy || !mode;
   $('apply-mode').disabled = busy || !mode;
   $('profile-select').disabled = busy;
@@ -68,6 +95,7 @@ async function reset() {
   $('advanced').hidden = true;
   $('lighting-controls').hidden = true;
   $('profile-controls').hidden = true;
+  renderTab();
   controls();
 }
 
@@ -95,6 +123,7 @@ $('connect').addEventListener('click', async () => {
     } catch { $('battery').textContent = ''; }
     renderMode();
     $('advanced').hidden = false;
+    renderTab();
     renderDpi(); renderRate();
     message(errors.length ? errors.join(' · ') : 'Настройки прочитаны. Некоторые устройства разрешают изменение только в режиме хоста.', errors.length > 0);
   } catch (error) {
@@ -269,15 +298,17 @@ $('save-buttons').addEventListener('click', () => operation(async () => {
   renderProfile(); message('Назначения записаны и проверены.');
 }));
 let capturedKey = null;
-$('key-capture').addEventListener('keydown', event => {
+function captureKey(event) {
   event.preventDefault();
   const code = event.code;
   let usage = /^Key[A-Z]$/.test(code) ? code.charCodeAt(3) - 65 + 4 : /^Digit[1-9]$/.test(code) ? Number(code.slice(5)) + 0x1d : code === 'Digit0' ? 0x27 : /^F([1-9]|1[0-2])$/.test(code) ? Number(code.slice(1)) + 0x39 : ({ Enter: 0x28, Escape: 0x29, Backspace: 0x2a, Tab: 0x2b, Space: 0x2c, Minus: 0x2d, Equal: 0x2e, BracketLeft: 0x2f, BracketRight: 0x30, Backslash: 0x31, Semicolon: 0x33, Quote: 0x34, Backquote: 0x35, Comma: 0x36, Period: 0x37, Slash: 0x38, CapsLock: 0x39, ArrowRight: 0x4f, ArrowLeft: 0x50, ArrowDown: 0x51, ArrowUp: 0x52 })[code];
-  if (usage === undefined) { capturedKey = null; $('key-capture').value = 'Неподдерживаемая клавиша'; return; }
+  if (usage === undefined) { event.target.value = 'Неподдерживаемая клавиша'; return null; }
   const modifiers = (event.ctrlKey ? 1 : 0) | (event.shiftKey ? 2 : 0) | (event.altKey ? 4 : 0) | (event.metaKey ? 8 : 0);
-  capturedKey = [0x80, 2, modifiers, usage];
-  $('key-capture').value = [event.ctrlKey && 'Ctrl', event.shiftKey && 'Shift', event.altKey && 'Alt', event.metaKey && 'Win', event.key.length === 1 ? event.key.toUpperCase() : event.key].filter(Boolean).join(' + ');
-});
+  const label = [event.ctrlKey && 'Ctrl', event.shiftKey && 'Shift', event.altKey && 'Alt', event.metaKey && 'Win', event.key.length === 1 ? event.key.toUpperCase() : event.key].filter(Boolean).join(' + ');
+  event.target.value = label;
+  return { usage, modifiers, label };
+}
+$('key-capture').addEventListener('keydown', event => { const key = captureKey(event); capturedKey = key ? [0x80, 2, key.modifiers, key.usage] : null; });
 $('save-key').addEventListener('click', () => operation(async () => {
   if (!profileBytes || profileSector !== Number($('profile-select').value) || !capturedKey) throw new Error('Прочитайте профиль и нажмите поддерживаемое сочетание');
   const changed = Uint8Array.from(profileBytes);
@@ -301,4 +332,34 @@ $('save-macro').addEventListener('click', () => operation(async () => {
   if (!profileBytes || profileSector !== Number($('profile-select').value)) throw new Error('Прочитайте профиль заново');
   profileBytes = await writeTextMacro(client, profiles, profileSector, profileBytes, Number($('macro-button').value), $('macro-text').value, Number($('macro-delay').value));
   renderProfile(); message('Макрос записан и проверен.');
+}));
+
+let macroKey = null;
+const steps = [];
+$('macro-key').addEventListener('keydown', event => { macroKey = captureKey(event); });
+function renderSteps() {
+  $('macro-steps').replaceChildren();
+  $('steps-empty').hidden = steps.length > 0;
+  steps.forEach((step, index) => {
+    const row = document.createElement('li');
+    const label = document.createElement('span'); label.textContent = step.label;
+    row.append(label);
+    for (const [symbol, description, action, disabled] of [
+      ['↑', 'Переместить выше', () => { [steps[index - 1], steps[index]] = [steps[index], steps[index - 1]]; }, index === 0],
+      ['↓', 'Переместить ниже', () => { [steps[index + 1], steps[index]] = [steps[index], steps[index + 1]]; }, index === steps.length - 1],
+      ['×', 'Удалить', () => steps.splice(index, 1), false],
+    ]) {
+      const button = document.createElement('button'); button.type = 'button'; button.textContent = symbol; button.setAttribute('aria-label', `${description}: ${step.label}`); button.dataset.boundary = String(disabled); button.disabled = disabled;
+      button.addEventListener('click', () => { action(); renderSteps(); }); row.append(button);
+    }
+    $('macro-steps').append(row);
+  });
+}
+$('add-key').addEventListener('click', () => { if (!macroKey) return message('Нажмите клавишу или сочетание в поле редактора.', true); steps.push({ type: 'key', ...macroKey }); renderSteps(); });
+$('add-delay').addEventListener('click', () => { const ms = Number($('step-delay').value); if (!Number.isInteger(ms) || ms < 0 || ms > 5000 || !$('step-delay').value) return message('Укажите паузу от 0 до 5000 мс.', true); steps.push({ type: 'delay', ms, label: `Пауза ${ms} мс` }); renderSteps(); });
+$('add-mouse').addEventListener('click', () => { const select = $('step-mouse'); steps.push({ type: 'mouse', mask: Number(select.value), label: `Клик: ${select.selectedOptions[0].textContent}` }); renderSteps(); });
+$('save-steps').addEventListener('click', () => operation(async () => {
+  if (!profileBytes || profileSector !== Number($('profile-select').value)) throw new Error('Прочитайте профиль заново');
+  profileBytes = await writeMacro(client, profiles, profileSector, profileBytes, Number($('macro-button').value), encodeSteps(steps));
+  renderProfile(); message('Макрос записан на кнопку и проверен.');
 }));
